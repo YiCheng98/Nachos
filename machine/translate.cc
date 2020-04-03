@@ -94,7 +94,6 @@ Machine::ReadMem(int addr, int size, int *value)
     DEBUG('a', "Reading VA 0x%x, size %d\n", addr, size);
     exception = Translate(addr, &physicalAddress, size, FALSE);
 	if (exception != NoException){
-		machine->tlbMissCnt++;
 		machine->RaiseException(exception, addr);
 		return FALSE;
     }
@@ -145,7 +144,6 @@ Machine::WriteMem(int addr, int size, int value)
 
     exception = Translate(addr, &physicalAddress, size, TRUE);
     if (exception != NoException){
-		machine->tlbMissCnt++;
 		machine->RaiseException(exception, addr);
 		return FALSE;
     }
@@ -223,6 +221,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
 	}
 	if (entry == NULL){
 		 DEBUG('a', "*** no valid TLB entry found for this virtual page!\n");
+		 tlbMissCnt++;
     	 return PageFaultException;
 	}
 
@@ -244,6 +243,7 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     *physAddr = pageFrame * PageSize + offset;
     ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
     DEBUG('a', "phys addr = 0x%x\n", *physAddr);
+	entry -> lastUsedTime = stats -> totalTicks;
 	tlbHitCnt++;
     return NoException;
 }

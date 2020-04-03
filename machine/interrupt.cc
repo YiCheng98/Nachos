@@ -241,8 +241,8 @@ void
 Interrupt::Halt()
 {
 	#ifdef USER_PROGRAM
-	int miss=machine->tlbMissCnt, hit = machine->tlbHitCnt;
-	DEBUG('a',"tlbMissCnt = %d, tlbHit = %d, tlbMissRate = %.2f\%\n", miss, hit, (float)miss*100/(float)(miss+hit));	
+	int miss=machine->tlbMissCnt, hit = machine->tlbHitCnt - miss;
+	DEBUG('a',"tlbMissRate = %.2f\%\n",(float)miss*100/(float)(miss+hit));	
 	#endif
     printf("Machine halting!\n\n");
     stats->Print();

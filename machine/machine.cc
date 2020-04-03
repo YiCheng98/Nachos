@@ -233,11 +233,15 @@ void Machine::SwappingTLB(){
 		}
 		//2. Replacement algorithm
 		if (entry==NULL){
-			entry = &tlb[fifoPointer];
-			fifoPointer = (fifoPointer+1)%TLBSize;
-			pageTable[entry->virtualPage] = *entry;
+			entry = &tlb[0];
+			for (i = 0; i < TLBSize; i++){
+				if (tlb[i].lastUsedTime < entry->lastUsedTime){
+					entry = &tlb[i];
+					break;
+				}
+			}
 		}
-		if (entry->valid){
+		if (entry->dirty){
 			pageTable[entry->virtualPage] = *entry;
 		}
 		*entry = pageTable[vpn];
