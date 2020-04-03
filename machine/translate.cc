@@ -96,11 +96,7 @@ Machine::ReadMem(int addr, int size, int *value)
 	if (exception != NoException){
 		machine->tlbMissCnt++;
 		machine->RaiseException(exception, addr);
-		if (exception == PageFaultException){
-			exception = Translate(addr, &physicalAddress, size, FALSE);
-		}
-		else
-			return FALSE;
+		return FALSE;
     }
     switch (size) {
       case 1:
@@ -151,10 +147,7 @@ Machine::WriteMem(int addr, int size, int value)
     if (exception != NoException){
 		machine->tlbMissCnt++;
 		machine->RaiseException(exception, addr);
-		if (exception == PageFaultException)
-			exception = Translate(addr, &physicalAddress, size, TRUE);
-		else
-			return FALSE;
+		return FALSE;
     }
     switch (size) {
       case 1:
@@ -251,5 +244,6 @@ Machine::Translate(int virtAddr, int* physAddr, int size, bool writing)
     *physAddr = pageFrame * PageSize + offset;
     ASSERT((*physAddr >= 0) && ((*physAddr + size) <= MemorySize));
     DEBUG('a', "phys addr = 0x%x\n", *physAddr);
+	tlbHitCnt++;
     return NoException;
 }

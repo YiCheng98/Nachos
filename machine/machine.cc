@@ -68,6 +68,7 @@ Machine::Machine(bool debug)
 	tlb[i].valid = FALSE;
     pageTable = NULL;
 	tlbMissCnt=0;
+	tlbHitCnt=0;
 	memActionCnt=0;
 #else	// use linear page table
     tlb = NULL;

@@ -180,6 +180,7 @@ class Machine {
 					// "read-only" to Nachos kernel code
 	int fifoPointer;
 	int tlbMissCnt;
+	int tlbHitCnt;
 	int memActionCnt;
     TranslationEntry *pageTable;
     unsigned int pageTableSize;
