@@ -183,7 +183,10 @@ class Machine {
 	int tlbHitCnt;
 	int memActionCnt;
     TranslationEntry *pageTable;
+	bool bitmap[NumPhysPages];
     unsigned int pageTableSize;
+	int FindFreePage();
+	void DeallocatePages();
 
   private:
     bool singleStep;		// drop back into the debugger after each

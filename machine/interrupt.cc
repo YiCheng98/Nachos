@@ -243,6 +243,7 @@ Interrupt::Halt()
 	#ifdef USER_PROGRAM
 	int miss=machine->tlbMissCnt, hit = machine->tlbHitCnt - miss;
 	DEBUG('a',"tlbMissRate = %.2f\%\n",(float)miss*100/(float)(miss+hit));	
+	machine->DeallocatePages();
 	#endif
     printf("Machine halting!\n\n");
     stats->Print();

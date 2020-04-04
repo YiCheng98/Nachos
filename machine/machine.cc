@@ -52,10 +52,8 @@ void CheckEndian()
 //		is executed.
 //----------------------------------------------------------------------
 
-Machine::Machine(bool debug)
-{
+Machine::Machine(bool debug){
     int i;
-
     for (i = 0; i < NumTotalRegs; i++)
         registers[i] = 0;
     mainMemory = new char[MemorySize];
@@ -67,6 +65,8 @@ Machine::Machine(bool debug)
     for (i = 0; i < TLBSize; i++)
 	tlb[i].valid = FALSE;
     pageTable = NULL;
+	for (i=0;i<NumPhysPages;i++)
+		bitmap[i]=FALSE;
 	tlbMissCnt=0;
 	tlbHitCnt=0;
 	memActionCnt=0;
@@ -247,4 +247,25 @@ void Machine::SwappingTLB(){
 		*entry = pageTable[vpn];
 	}
 	#endif
+}
+
+int Machine::FindFreePage(){
+	for (int i=0;i<NumPhysPages;i++){
+		if (!bitmap[i]){
+			if (! bitmap[i]){
+				bitmap[i]=TRUE;
+				printf("Allocate physical page %d\n",i);
+				return i;
+			}
+		}
+	}
+}
+
+void Machine::DeallocatePages(){
+	int physicalPage;
+	for (int i=0;i<pageTableSize;i++){
+		physicalPage = pageTable[i].physicalPage;
+		bitmap[physicalPage] = FALSE;
+		printf("Deallocate physical page %d\n",physicalPage);
+	}
 }
