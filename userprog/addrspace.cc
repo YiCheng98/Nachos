@@ -97,23 +97,60 @@ AddrSpace::AddrSpace(OpenFile *executable)
 					// a separate page, we could set its 
 					// pages to be read-only
     }
-    
+    RestoreState();
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
     bzero(machine->mainMemory, size);
 
 // then, copy in the code and data segments into memory
+	int virtAddr =	noffH.code.virtualAddr;
+	int physAddr, vpn, offset,pageFrame;
+	int remainCopySize = noffH.code.size;
+	int fileOffset = noffH.code.inFileAddr;
     if (noffH.code.size > 0) {
-        DEBUG('a', "Initializing code segment, at 0x%x, size %d\n", 
+        DEBUG('a',"Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.code.virtualAddr]),
-			noffH.code.size, noffH.code.inFileAddr);
+		size = min(PageSize - virtAddr % PageSize,remainCopySize);
+		while (remainCopySize > 0){
+			vpn = (unsigned) virtAddr / PageSize;
+			offset = (unsigned) virtAddr % PageSize;
+			for (i = 0; i < numPages; i++) {
+				if (pageTable[i].virtualPage == vpn){					
+					pageFrame = pageTable[i].physicalPage;
+					break;
+				}
+			}
+			physAddr = pageFrame * PageSize + offset;
+			executable->ReadAt(&(machine->mainMemory[physAddr]),
+				size,fileOffset);
+			virtAddr += size;
+			fileOffset += size;
+			remainCopySize -= size;
+			size = min(PageSize, remainCopySize);
+		}
     }
     if (noffH.initData.size > 0) {
-        DEBUG('a', "Initializing data segment, at 0x%x, size %d\n", 
+        DEBUG('a',"Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-        executable->ReadAt(&(machine->mainMemory[noffH.initData.virtualAddr]),
-			noffH.initData.size, noffH.initData.inFileAddr);
+		size = min(PageSize - virtAddr % PageSize, PageSize);
+		vpn = (unsigned) virtAddr / PageSize;
+			offset = (unsigned) virtAddr % PageSize;
+			for (i = 0; i < numPages; i++) {
+				if (pageTable[i].virtualPage == vpn){					
+					pageFrame = pageTable[i].physicalPage;
+					break;
+				}
+			}
+		physAddr = pageFrame * PageSize + offset;
+		while (remainCopySize > 0){
+			machine -> Translate(virtAddr, &physAddr, size, TRUE);
+			executable->ReadAt(&(machine->mainMemory[physAddr]),
+				size, fileOffset);
+			virtAddr += size;
+			fileOffset += size;
+			remainCopySize -= size;
+			size = min(PageSize, remainCopySize);
+		}
     }
 
 }

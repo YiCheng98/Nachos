@@ -67,7 +67,7 @@ ExceptionHandler(ExceptionType which)
 			machine->SwappingTLB();
 			break;
 		default:
-			printf("Unexpected user mode exception %d %d\n", which, type);
+			//printf("Unexpected user mode exception %d %d\n", which, type);
 			break;
 	}
 }
