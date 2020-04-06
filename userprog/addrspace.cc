@@ -86,10 +86,10 @@ AddrSpace::AddrSpace(OpenFile *executable)
     DEBUG('a', "Initializing address space, num pages %d, size %d\n", 
 					numPages, size);
 // first, set up the translation 
-    pageTable = new TranslationEntry[numPages];
+    pageTable = new TranslationEntry[NumPhysPages];
     for (i = 0; i < numPages; i++) {
 	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	pageTable[i].physicalPage = 0;
+	pageTable[i].physicalPage = i;
 	pageTable[i].valid = FALSE;
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
@@ -114,11 +114,13 @@ AddrSpace::AddrSpace(OpenFile *executable)
 			vpn = (unsigned) virtAddr / PageSize;
 			offset = (unsigned) virtAddr % PageSize;	
 			pageFrame = machine->FindFreePage();
-			pageTable[vpn].physicalPage = pageFrame;
+			//pageTable[vpn].physicalPage = pageFrame;
+			pageTable[pageFrame].virtualPage = vpn;
 			physAddr = pageFrame * PageSize + offset;
 			executable->ReadAt(&(machine->mainMemory[physAddr]),
 				size,fileOffset);
-			pageTable[vpn].valid = TRUE;
+			// pageTable[vpn].valid = TRUE;
+			pageTable[pageFrame].valid = TRUE;
 			virtAddr += size;
 			fileOffset += size;
 			remainCopySize -= size;
@@ -133,11 +135,13 @@ AddrSpace::AddrSpace(OpenFile *executable)
 			vpn = (unsigned) virtAddr / PageSize;
 			offset = (unsigned) virtAddr % PageSize;		
 			pageTable[vpn].physicalPage = machine->FindFreePage();			
-			pageFrame = pageTable[vpn].physicalPage;
+			//pageTable[vpn].physicalPage = pageFrame;
+			pageTable[pageFrame].virtualPage = vpn;
 			physAddr = pageFrame * PageSize + offset;
 			executable->ReadAt(&(machine->mainMemory[physAddr]),
 				size, fileOffset);
-			pageTable[vpn].valid = TRUE;
+			// pageTable[vpn].valid = TRUE;
+			pageTable[pageFrame].valid = TRUE;
 			virtAddr += size;
 			fileOffset += size;
 			remainCopySize -= size;

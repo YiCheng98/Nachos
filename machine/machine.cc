@@ -225,14 +225,18 @@ void Machine::SwappingTLB(){
 	if (machine->tlb != NULL){
 		int addr = machine->ReadRegister(BadVAddrReg);
 		unsigned int vpn = (unsigned) addr / PageSize;
+		int pageFrame=-1;
 		int i;
-		if (! machine->pageTable[vpn].valid){
-			int pageFrame = machine->FindFreePage();
-			pageTable[vpn].physicalPage = pageFrame;
+		for (i=0;i<pageTableSize;i++)
+			if (pageTable[i].virtualPage == vpn && pageTable[i].valid)
+				pageFrame = i;
+		if (pageFrame == -1){
+			pageFrame = machine->FindFreePage();
+			pageTable[pageFrame].virtualPage = vpn;
 			int physAddr = pageFrame * PageSize;
-			vmDisk->ReadAt(&(machine->mainMemory[physAddr]),
+			vmDisk->ReadAt(&(machine->mainMemory[vpn*PageSize]),
 				PageSize, vpn*PageSize);
-			machine->pageTable[vpn].valid = TRUE;
+			machine->pageTable[pageFrame].valid = TRUE;
 		}
 		TranslationEntry *entry=NULL;
 		//1. find a valid tlb entry
@@ -253,9 +257,9 @@ void Machine::SwappingTLB(){
 			}
 		}
 		if (entry->dirty){
-			pageTable[entry->virtualPage] = *entry;
+			pageTable[entry->physicalPage] = *entry;
 		}
-		*entry = pageTable[vpn];
+		*entry = pageTable[pageFrame];
 	}
 	#endif
 }
@@ -272,15 +276,10 @@ int Machine::FindFreePage(){
 	}
 	int replacePage = NumPhysPages/2+stats->totalTicks%(NumPhysPages/2);
 	printf("Replace Page %d\n",replacePage);
-	for (int i=0;i<machine->pageTableSize;i++){
-		if (pageTable[i].physicalPage == replacePage){
-			if (pageTable[i].dirty){
-				vmDisk->WriteAt(&(machine->mainMemory[replacePage*PageSize]),
-				PageSize, pageTable[i].virtualPage*PageSize);
-			}
-			pageTable[i].valid = FALSE;
-		}
+	if (pageTable[replacePage].dirty){
+		vmDisk->WriteAt(&(machine->mainMemory[pageTable[replacePage].virtualPage*PageSize]),PageSize, pageTable[replacePage].virtualPage*PageSize);
 	}
+	pageTable[replacePage].valid = FALSE;
 	return replacePage;
 }
 
