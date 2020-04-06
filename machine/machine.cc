@@ -54,6 +54,8 @@ void CheckEndian()
 
 Machine::Machine(bool debug){
     int i;
+	fileSystem->Create("vmDisk",PageSize * 1024);
+	vmDisk = fileSystem->Open("vmDisk");
     for (i = 0; i < NumTotalRegs; i++)
         registers[i] = 0;
     mainMemory = new char[MemorySize];
@@ -86,6 +88,7 @@ Machine::Machine(bool debug){
 
 Machine::~Machine()
 {
+	delete vmDisk;
     delete [] mainMemory;
     if (tlb != NULL)
         delete [] tlb;
@@ -223,6 +226,14 @@ void Machine::SwappingTLB(){
 		int addr = machine->ReadRegister(BadVAddrReg);
 		unsigned int vpn = (unsigned) addr / PageSize;
 		int i;
+		if (! machine->pageTable[vpn].valid){
+			int pageFrame = machine->FindFreePage();
+			pageTable[vpn].physicalPage = pageFrame;
+			int physAddr = pageFrame * PageSize;
+			vmDisk->ReadAt(&(machine->mainMemory[physAddr]),
+				PageSize, vpn*PageSize);
+			machine->pageTable[vpn].valid = TRUE;
+		}
 		TranslationEntry *entry=NULL;
 		//1. find a valid tlb entry
 		for (i = 0; i < TLBSize; i++){
@@ -259,13 +270,27 @@ int Machine::FindFreePage(){
 			}
 		}
 	}
+	int replacePage = NumPhysPages/2+stats->totalTicks%(NumPhysPages/2);
+	printf("Replace Page %d\n",replacePage);
+	for (int i=0;i<machine->pageTableSize;i++){
+		if (pageTable[i].physicalPage == replacePage){
+			if (pageTable[i].dirty){
+				vmDisk->WriteAt(&(machine->mainMemory[replacePage*PageSize]),
+				PageSize, pageTable[i].virtualPage*PageSize);
+			}
+			pageTable[i].valid = FALSE;
+		}
+	}
+	return replacePage;
 }
 
 void Machine::DeallocatePages(){
 	int physicalPage;
 	for (int i=0;i<pageTableSize;i++){
 		physicalPage = pageTable[i].physicalPage;
-		bitmap[physicalPage] = FALSE;
-		printf("Deallocate physical page %d\n",physicalPage);
+		if (bitmap[physicalPage]){
+			bitmap[physicalPage] = FALSE;
+			printf("Deallocate physical page %d\n",physicalPage);
+		}
 	}
 }

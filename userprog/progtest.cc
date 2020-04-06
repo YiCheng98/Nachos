@@ -29,16 +29,10 @@ StartProcess(char *filename)
 	printf("Unable to open file %s\n", filename);
 	return;
     }
-	printf("Allocating Space for the 1st user program\n");
-    space = new AddrSpace(executable);    
-    currentThread->space = space;
-	space->InitRegisters();		// set the initial register values
-    space->RestoreState();		// load page table register
-	printf("Allocating Space for the 2nd user program\n");
 	space = new AddrSpace(executable);    
+	space->RestoreState();
     currentThread->space = space;
 	space->InitRegisters();		// set the initial register values
-    space->RestoreState();		// load page table register
     delete executable;			// close file
     machine->Run();			// jump to the user progam
     ASSERT(FALSE);			// machine->Run never returns;

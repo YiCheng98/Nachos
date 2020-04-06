@@ -25,6 +25,7 @@
 #include "utility.h"
 #include "translate.h"
 #include "disk.h"
+#include "filesys.h"
 
 // Definitions related to the size, and format of user memory
 
@@ -156,6 +157,7 @@ class Machine {
     char *mainMemory;		// physical memory to store user program,
 				// code and data, while executing
     int registers[NumTotalRegs]; // CPU registers, for executing user programs
+	OpenFile *vmDisk;
 
 
 // NOTE: the hardware translation of virtual addresses in the user program

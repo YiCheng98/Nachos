@@ -78,7 +78,7 @@ AddrSpace::AddrSpace(OpenFile *executable)
     numPages = divRoundUp(size, PageSize);
     size = numPages * PageSize;
 
-    ASSERT(numPages <= NumPhysPages);		// check we're not trying
+    //ASSERT(numPages <= NumPhysPages);		// check we're not trying
 						// to run anything too big --
 						// at least until we have
 						// virtual memory
@@ -89,19 +89,18 @@ AddrSpace::AddrSpace(OpenFile *executable)
     pageTable = new TranslationEntry[numPages];
     for (i = 0; i < numPages; i++) {
 	pageTable[i].virtualPage = i;	// for now, virtual page # = phys page #
-	pageTable[i].physicalPage = machine->FindFreePage();
-	pageTable[i].valid = TRUE;
+	pageTable[i].physicalPage = 0;
+	pageTable[i].valid = FALSE;
 	pageTable[i].use = FALSE;
 	pageTable[i].dirty = FALSE;
 	pageTable[i].readOnly = FALSE;  // if the code segment was entirely on 
 					// a separate page, we could set its 
 					// pages to be read-only
     }
-    RestoreState();
 // zero out the entire address space, to zero the unitialized data segment 
 // and the stack segment
-    bzero(machine->mainMemory, size);
-
+	RestoreState();
+    bzero(machine->mainMemory, MemorySize);
 // then, copy in the code and data segments into memory
 	int virtAddr =	noffH.code.virtualAddr;
 	int physAddr, vpn, offset,pageFrame;
@@ -110,19 +109,16 @@ AddrSpace::AddrSpace(OpenFile *executable)
     if (noffH.code.size > 0) {
         DEBUG('a',"Initializing code segment, at 0x%x, size %d\n", 
 			noffH.code.virtualAddr, noffH.code.size);
-		size = min(PageSize - virtAddr % PageSize,remainCopySize);
+		int size = min(PageSize - virtAddr % PageSize,remainCopySize);
 		while (remainCopySize > 0){
 			vpn = (unsigned) virtAddr / PageSize;
-			offset = (unsigned) virtAddr % PageSize;
-			for (i = 0; i < numPages; i++) {
-				if (pageTable[i].virtualPage == vpn){					
-					pageFrame = pageTable[i].physicalPage;
-					break;
-				}
-			}
+			offset = (unsigned) virtAddr % PageSize;	
+			pageFrame = machine->FindFreePage();
+			pageTable[vpn].physicalPage = pageFrame;
 			physAddr = pageFrame * PageSize + offset;
 			executable->ReadAt(&(machine->mainMemory[physAddr]),
 				size,fileOffset);
+			pageTable[vpn].valid = TRUE;
 			virtAddr += size;
 			fileOffset += size;
 			remainCopySize -= size;
@@ -132,27 +128,22 @@ AddrSpace::AddrSpace(OpenFile *executable)
     if (noffH.initData.size > 0) {
         DEBUG('a',"Initializing data segment, at 0x%x, size %d\n", 
 			noffH.initData.virtualAddr, noffH.initData.size);
-		size = min(PageSize - virtAddr % PageSize, PageSize);
-		vpn = (unsigned) virtAddr / PageSize;
-			offset = (unsigned) virtAddr % PageSize;
-			for (i = 0; i < numPages; i++) {
-				if (pageTable[i].virtualPage == vpn){					
-					pageFrame = pageTable[i].physicalPage;
-					break;
-				}
-			}
-		physAddr = pageFrame * PageSize + offset;
+		int size = min(PageSize - virtAddr % PageSize, PageSize);
 		while (remainCopySize > 0){
-			machine -> Translate(virtAddr, &physAddr, size, TRUE);
+			vpn = (unsigned) virtAddr / PageSize;
+			offset = (unsigned) virtAddr % PageSize;		
+			pageTable[vpn].physicalPage = machine->FindFreePage();			
+			pageFrame = pageTable[vpn].physicalPage;
+			physAddr = pageFrame * PageSize + offset;
 			executable->ReadAt(&(machine->mainMemory[physAddr]),
 				size, fileOffset);
+			pageTable[vpn].valid = TRUE;
 			virtAddr += size;
 			fileOffset += size;
 			remainCopySize -= size;
 			size = min(PageSize, remainCopySize);
 		}
     }
-
 }
 
 //----------------------------------------------------------------------
@@ -194,6 +185,7 @@ AddrSpace::InitRegisters()
    // allocated the stack; but subtract off a bit, to make sure we don't
    // accidentally reference off the end!
     machine->WriteRegister(StackReg, numPages * PageSize - 16);
+	DEBUG('a', "%d %d\n", numPages, PageSize);
     DEBUG('a', "Initializing stack register to %d\n", numPages * PageSize - 16);
 }
 
@@ -205,8 +197,10 @@ AddrSpace::InitRegisters()
 //	For now, nothing!
 //----------------------------------------------------------------------
 
-void AddrSpace::SaveState() 
-{}
+void AddrSpace::SaveState(){
+	for (int i = 0; i < TLBSize; i++) 
+		machine->tlb[i].valid = FALSE;
+}
 
 //----------------------------------------------------------------------
 // AddrSpace::RestoreState
