@@ -46,14 +46,19 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 	
     if (freeMap->NumClear() < numSectors)
 	return FALSE;		// not enough space
-    for (int i = 0; i < numSectors; i++)
-	dataSectors[i] = freeMap->Find();
-	time( &createTime );
-	time( &updateTime );
-	time( &lastOpenTime );
-	struct tm *info;
-	info = localtime( &createTime );
-	DEBUG('f', "File Created Time: %s\n", asctime(info));
+	if (numSectors < NumDirect){
+		for (int i = 0; i < numSectors; i++)
+			dataSectors[i] = freeMap->Find();
+	}
+	else{
+		int L1Table[32]={0};
+		for (int i = 0; i <  NumDirect; i++)
+			dataSectors[i] = freeMap->Find();
+		L1Index = freeMap->Find();
+		for (int i=0 ; i< numSectors - NumDirect; i++)
+			L1Table[i] = freeMap->Find();
+		synchDisk->WriteSector( L1Index, (char*)L1Table );
+	}
     return TRUE;
 }
 
@@ -67,10 +72,20 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 void 
 FileHeader::Deallocate(BitMap *freeMap)
 {
-    for (int i = 0; i < numSectors; i++) {
-	ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
-	freeMap->Clear((int) dataSectors[i]);
-    }
+	if (numSectors < NumDirect){
+		for (int i = 0; i < numSectors; i++) {
+			ASSERT(freeMap->Test((int) dataSectors[i]));  // ought to be marked!
+			freeMap->Clear((int) dataSectors[i]);
+		}
+	}
+	else{
+		for (int i = 0; i < NumDirect; i++) 
+			freeMap->Clear((int) dataSectors[i]);
+		int L1Table[32];
+		synchDisk->ReadSector( L1Index, (char*)L1Table );
+		for (int i=0 ; i< numSectors - NumDirect; i++)
+			freeMap->Clear(L1Table[i]);
+	}
 }
 
 //----------------------------------------------------------------------
@@ -109,9 +124,15 @@ FileHeader::WriteBack(int sector){
 //----------------------------------------------------------------------
 
 int
-FileHeader::ByteToSector(int offset)
-{
-    return(dataSectors[offset / SectorSize]);
+FileHeader::ByteToSector(int offset){
+	int sector = offset / SectorSize;
+	if (sector < NumDirect)
+		return(dataSectors[offset / SectorSize]);
+	else{
+		int L1Table[32]={0};
+		synchDisk->ReadSector(L1Index, (char *)L1Table);
+		return(L1Table[sector-NumDirect]);
+	}
 }
 
 //----------------------------------------------------------------------
@@ -138,18 +159,28 @@ FileHeader::Print()
     char *data = new char[SectorSize];
 
     printf("FileHeader contents.  File size: %d.  File blocks:\n", numBytes);
-    for (i = 0; i < numSectors; i++)
-	printf("%d ", dataSectors[i]);
+	int L1Table[32];
+	if (numSectors >NumDirect)
+		synchDisk->ReadSector( L1Index, (char*)L1Table );
+    for (i = 0; i < numSectors; i++){
+		if (i < NumDirect)
+			printf("%d ", dataSectors[i]);
+		else
+			printf("%d ", L1Table[i-NumDirect]);
+	}
     printf("\nFile contents:\n");
     for (i = k = 0; i < numSectors; i++) {
-	synchDisk->ReadSector(dataSectors[i], data);
-        for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
-	    if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
-		printf("%c", data[j]);
-            else
-		printf("\\%x", (unsigned char)data[j]);
-	}
-        printf("\n"); 
+		if (i < NumDirect)
+			synchDisk->ReadSector(dataSectors[i], data);
+		else
+			synchDisk->ReadSector(L1Table[i-NumDirect], data);
+		for (j = 0; (j < SectorSize) && (k < numBytes); j++, k++) {
+			if ('\040' <= data[j] && data[j] <= '\176')   // isprint(data[j])
+				printf("%c", data[j]);
+			else
+				printf("\\%x", (unsigned char)data[j]);
+		}
+		printf("\n"); 
     }
     delete [] data;
 }

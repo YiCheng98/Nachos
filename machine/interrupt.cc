@@ -275,7 +275,6 @@ Interrupt::Schedule(VoidFunctionPtr handler, int arg, int fromNow, IntType type)
     DEBUG('i', "Scheduling interrupt handler the %s at time = %d\n", 
 					intTypeNames[type], when);
     ASSERT(fromNow > 0);
-
     pending->SortedInsert(toOccur, when);
 }
 

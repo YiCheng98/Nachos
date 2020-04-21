@@ -178,9 +178,11 @@ List::IsEmpty()
 void
 List::SortedInsert(void *item, int sortKey)
 {
-    ListElement *element = new ListElement(item, sortKey);
+	item;
+	sortKey;
+    new ListElement(item, sortKey);
+	ListElement *element = new ListElement(item, sortKey);
     ListElement *ptr;		// keep track
-
     if (IsEmpty()) {	// if list is empty, put
         first = element;
         last = element;
