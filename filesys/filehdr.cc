@@ -43,11 +43,17 @@ FileHeader::Allocate(BitMap *freeMap, int fileSize)
 { 
     numBytes = fileSize;
     numSectors  = divRoundUp(fileSize, SectorSize);
+	
     if (freeMap->NumClear() < numSectors)
 	return FALSE;		// not enough space
-
     for (int i = 0; i < numSectors; i++)
 	dataSectors[i] = freeMap->Find();
+	time( &createTime );
+	time( &updateTime );
+	time( &lastOpenTime );
+	struct tm *info;
+	info = localtime( &createTime );
+	DEBUG('f', "File Created Time: %s\n", asctime(info));
     return TRUE;
 }
 
@@ -88,8 +94,7 @@ FileHeader::FetchFrom(int sector)
 //----------------------------------------------------------------------
 
 void
-FileHeader::WriteBack(int sector)
-{
+FileHeader::WriteBack(int sector){
     synchDisk->WriteSector(sector, (char *)this); 
 }
 

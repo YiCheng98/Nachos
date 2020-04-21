@@ -31,6 +31,7 @@ OpenFile::OpenFile(int sector)
 { 
     hdr = new FileHeader;
     hdr->FetchFrom(sector);
+	currentSector = sector;
     seekPosition = 0;
 }
 
@@ -76,6 +77,11 @@ OpenFile::Read(char *into, int numBytes)
 {
    int result = ReadAt(into, numBytes, seekPosition);
    seekPosition += result;
+   time(&(hdr->lastOpenTime));
+   hdr->WriteBack(currentSector);
+   struct tm *info;
+	info = localtime( &(hdr->lastOpenTime) );
+	DEBUG('f', "File Last Opened Time: %s\n", asctime(info));
    return result;
 }
 
@@ -84,6 +90,12 @@ OpenFile::Write(char *into, int numBytes)
 {
    int result = WriteAt(into, numBytes, seekPosition);
    seekPosition += result;
+   time(&(hdr->lastOpenTime));
+   time(&(hdr->updateTime));
+   hdr->WriteBack(currentSector);
+   struct tm *info;
+	info = localtime( &(hdr->lastOpenTime) );
+	DEBUG('f', "File Last Opened Time: %s\n", asctime(info));
    return result;
 }
 
@@ -119,7 +131,7 @@ OpenFile::ReadAt(char *into, int numBytes, int position)
     int fileLength = hdr->FileLength();
     int i, firstSector, lastSector, numSectors;
     char *buf;
-	printf("%d, %d, %d\n",numBytes, position,fileLength);
+	//printf("%d, %d, %d\n",numBytes, position,fileLength);
     if ((numBytes <= 0) || (position >= fileLength)){
     	return 0; 				// check request
 	}
@@ -151,7 +163,6 @@ OpenFile::WriteAt(char *from, int numBytes, int position)
     int i, firstSector, lastSector, numSectors;
     bool firstAligned, lastAligned;
     char *buf;
-
     if ((numBytes <= 0) || (position >= fileLength))
 	return 0;				// check request
     if ((position + numBytes) > fileLength)

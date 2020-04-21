@@ -23,8 +23,9 @@
 #include "copyright.h"
 #include "utility.h"
 #include "filehdr.h"
+#include "filesys.h"
 #include "directory.h"
-
+extern FileSystem  *fileSystem;
 //----------------------------------------------------------------------
 // Directory::Directory
 // 	Initialize a directory; initially, the directory is completely
@@ -34,6 +35,27 @@
 //
 //	"size" is the number of entries in the directory
 //----------------------------------------------------------------------
+
+void DirectoryEntry::GetName(char *into){
+	strcpy(into, name);
+	if (fileNameLen > FileNameMaxLen){
+		fileSystem->extNameFile->ReadAt((char *)into + FileNameMaxLen, fileNameLen - FileNameMaxLen,0);
+	}
+}
+
+void DirectoryEntry::SetName(char *into){
+	fileNameLen = strlen(into);
+	char tmp[256];
+	if (fileNameLen > FileNameMaxLen){
+		for (int i=0;i<FileNameMaxLen;i++)
+			name[i]=into[i];
+		extNamePos = fileSystem->extNameFile->GetPosition();
+		fileSystem->extNameFile->Write((char *)into + FileNameMaxLen, fileNameLen-FileNameMaxLen);
+	}
+	else{
+		strcpy(name,into);
+	}
+}
 
 Directory::Directory(int size)
 {
@@ -91,8 +113,18 @@ int
 Directory::FindIndex(char *name)
 {
     for (int i = 0; i < tableSize; i++)
-        if (table[i].inUse && !strncmp(table[i].name, name, FileNameMaxLen))
-	    return i;
+        if (table[i].inUse){
+			int len=strlen(name);
+			if (table[i].fileNameLen != len){
+				continue;
+			}				
+			else{
+				char *tmpname = new char(len);
+				table[i].GetName(tmpname);
+				if (!strncmp(tmpname, name, FileNameMaxLen))
+					return i;
+			}
+		}
     return -1;		// name not in directory
 }
 
@@ -111,7 +143,7 @@ Directory::Find(char *name)
     int i = FindIndex(name);
 
     if (i != -1)
-	return table[i].sector;
+		return table[i].sector;
     return -1;
 }
 
@@ -135,7 +167,7 @@ Directory::Add(char *name, int newSector)
     for (int i = 0; i < tableSize; i++)
         if (!table[i].inUse) {
             table[i].inUse = TRUE;
-            strncpy(table[i].name, name, FileNameMaxLen); 
+			table[i].SetName(name);
             table[i].sector = newSector;
         return TRUE;
 	}
@@ -167,11 +199,14 @@ Directory::Remove(char *name)
 //----------------------------------------------------------------------
 
 void
-Directory::List()
-{
+Directory::List(){
+	char *tmpName;
+   tmpName = new char(256);
    for (int i = 0; i < tableSize; i++)
-	if (table[i].inUse)
-	    printf("%s\n", table[i].name);
+	if (table[i].inUse){
+		table[i].GetName(tmpName);
+	    printf("%s \n", tmpName);
+	}
 }
 
 //----------------------------------------------------------------------

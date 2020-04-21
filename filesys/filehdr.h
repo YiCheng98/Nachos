@@ -8,7 +8,7 @@
 // Copyright (c) 1992-1993 The Regents of the University of California.
 // All rights reserved.  See copyright.h for copyright notice and limitation 
 // of liability and disclaimer of warranty provisions.
-
+#include <time.h>
 #include "copyright.h"
 
 #ifndef FILEHDR_H
@@ -55,11 +55,16 @@ class FileHeader {
 					// in bytes
 
     void Print();			// Print the contents of the file.
-
+	//char fileType;
+	//char filePath[FilePathMaxLen+ 1];
+	time_t createTime;
+	time_t updateTime;
+	time_t lastOpenTime;
   private:
     int numBytes;			// Number of bytes in the file
     int numSectors;			// Number of data sectors in the file
     int dataSectors[NumDirect];		// Disk sector numbers for each data 
+	int L1Index;
 					// block in the file
 };
 

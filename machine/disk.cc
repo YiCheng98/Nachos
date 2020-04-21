@@ -136,7 +136,6 @@ void
 Disk::WriteRequest(int sectorNumber, char* data)
 {
     int ticks = ComputeLatency(sectorNumber, TRUE);
-
     ASSERT(!active);
     ASSERT((sectorNumber >= 0) && (sectorNumber < NumSectors));
     

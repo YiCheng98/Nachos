@@ -125,8 +125,9 @@ Initialize(int argc, char **argv)
 			debugUserProg = TRUE;
 	#endif
 	#ifdef FILESYS_NEEDED
-		if (!strcmp(*argv, "-f"))
+		if (!strcmp(*argv, "-f")){
 			format = TRUE;
+		}
 	#endif
 	#ifdef NETWORK
 		if (!strcmp(*argv, "-l")) {
@@ -158,11 +159,6 @@ Initialize(int argc, char **argv)
 
     interrupt->Enable();
     CallOnUserAbort(Cleanup);			// if user hits ctl-C
-    
-#ifdef USER_PROGRAM
-    machine = new Machine(debugUserProg);	// this must come first
-#endif
-
 #ifdef FILESYS
     synchDisk = new SynchDisk("DISK");
 #endif
@@ -170,6 +166,11 @@ Initialize(int argc, char **argv)
 #ifdef FILESYS_NEEDED
     fileSystem = new FileSystem(format);
 #endif
+
+#ifdef USER_PROGRAM
+    machine = new Machine(debugUserProg);	// this must come first
+#endif
+
 
 #ifdef NETWORK
     postOffice = new PostOffice(netname, rely, 10);
