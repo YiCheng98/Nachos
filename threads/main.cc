@@ -149,6 +149,10 @@ int main(int argc, char **argv)
             fileSystem->Print();
 	} else if (!strcmp(*argv, "-t")) {	// performance test
             PerformanceTest();
+	} else if (!strcmp(*argv, "-ad")) {
+		ASSERT(argc > 1);
+	    fileSystem->AddDir(*(argv + 1));
+	    argCount = 2;
 	}
 #endif // FILESYS
 #ifdef NETWORK

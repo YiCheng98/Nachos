@@ -41,9 +41,10 @@ class DirectoryEntry {
 					// the trailing '\0'
 	int fileNameLen;
 	int extNamePos;
+	char type;
 	void GetName(char *into);
 	void SetName(char *into);
-	DirectoryEntry() {inUse=false;};
+	DirectoryEntry() {inUse=false; sector = -1;};
 };
 
 // The following class defines a UNIX-like "directory".  Each entry in
@@ -70,22 +71,24 @@ class Directory {
 					// FileHeader for file: "name"
 
     bool Add(char *name, int newSector);  // Add a file name into the directory
+	bool AddDir(char *name,int DirectorySector);
 
     bool Remove(char *name);		// Remove a file from the directory
 
-    void List();			// Print the names of all the files
+    void List(int preblank);			// Print the names of all the files
 					//  in the directory
     void Print();			// Verbose print of the contents
 					//  of the directory -- all the file
 					//  names and their contents.
-
+	OpenFile *FindDir(char *name);
   private:
     int tableSize;			// Number of directory entries
     DirectoryEntry *table;		// Table of pairs: 
+	int FindIndex(char *name);		// Find the index into the directory 
+					//  table corresponding to "name"
 					// <file name, file header location> 
 
-    int FindIndex(char *name);		// Find the index into the directory 
-					//  table corresponding to "name"
+
 };
 
 #endif // DIRECTORY_H

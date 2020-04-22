@@ -50,7 +50,6 @@
 #include "directory.h"
 #include "filehdr.h"
 #include "filesys.h"
-
 // Sectors containing the file headers for the bitmap of free sectors,
 // and the directory of files.  These file headers are placed in well-known 
 // sectors, so that they can be located on boot-up.
@@ -185,9 +184,23 @@ FileSystem::Create(char *name, int initialSize)
     bool success;
 
     DEBUG('f', "Creating file %s, size %d\n", name, initialSize);
-
-    directory = new Directory(NumDirEntries);
-    directory->FetchFrom(directoryFile);
+	char *pchar = name;
+	OpenFile *currentDirFile = directoryFile;
+	directory = new Directory(NumDirEntries);
+	directory->FetchFrom(directoryFile);
+	char currentDirName[256];
+	while (*pchar != '\0' && *pchar != '/')
+		pchar++;
+	while (*pchar != '\0'){
+		*pchar = '\0';
+		strcpy(currentDirName, name);
+		currentDirFile = new OpenFile(directory->Find(currentDirName));
+		directory->FetchFrom(currentDirFile);
+		name = pchar+1;
+		pchar = name;
+		while (*pchar != '\0' && *pchar != '/')
+			pchar++;
+	}
     if (directory->Find(name) != -1)
       success = FALSE;			// file is already in directory
     else {	
@@ -206,7 +219,7 @@ FileSystem::Create(char *name, int initialSize)
 	    	success = TRUE;
 		// everthing worked, flush all changes back to disk
     	    	hdr->WriteBack(sector); 		
-    	    	directory->WriteBack(directoryFile);
+    	    	directory->WriteBack(currentDirFile);
     	    	freeMap->WriteBack(freeMapFile);
 	    }
             delete hdr;
@@ -257,9 +270,7 @@ FileSystem::Open(char *name)
 //	"name" -- the text name of the file to be removed
 //----------------------------------------------------------------------
 
-bool
-FileSystem::Remove(char *name)
-{ 
+bool FileSystem::Remove(char *name){ 
     Directory *directory;
     BitMap *freeMap;
     FileHeader *fileHdr;
@@ -289,7 +300,38 @@ FileSystem::Remove(char *name)
     delete freeMap;
     return TRUE;
 } 
-
+bool FileSystem::AddDir(char *name){
+	Directory *directory;
+    BitMap *freeMap;
+    int sector;
+    bool success;
+    DEBUG('f', "Creating Directory %s\n", name);
+	directory = new Directory(NumDirEntries);
+	directory->FetchFrom(directoryFile);
+    if (directory->Find(name) != -1)
+      success = FALSE;			// file is already in directory
+    else {	
+        freeMap = new BitMap(NumSectors);
+        freeMap->FetchFrom(freeMapFile);
+        sector = freeMap->Find();	// find a sector to hold the file header
+		FileHeader *dirHdr = new FileHeader; 
+		freeMap->Mark(sector);
+		ASSERT(dirHdr->Allocate(freeMap, DirectoryFileSize));
+		dirHdr->WriteBack(sector);
+    	if (sector == -1) 		
+            success = FALSE;		// no free block for file header 
+        else if (!directory->AddDir(name, sector))
+            success = FALSE;	// no space in directory
+		else{
+	    	success = TRUE;
+			freeMap->WriteBack(freeMapFile);		// flush to disk
+			directory->WriteBack(directoryFile);
+		}
+	}
+    delete freeMap;
+    delete directory;
+    return success;
+}
 //----------------------------------------------------------------------
 // FileSystem::List
 // 	List all the files in the file system directory.
@@ -299,9 +341,8 @@ void
 FileSystem::List()
 {
     Directory *directory = new Directory(NumDirEntries);
-
     directory->FetchFrom(directoryFile);
-    directory->List();
+    directory->List(0);
     delete directory;
 }
 

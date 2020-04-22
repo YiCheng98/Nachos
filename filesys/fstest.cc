@@ -55,7 +55,7 @@ Copy(char *from, char *to)
 	return;
     }
     
-    openFile = fileSystem->Open(to);
+    /*openFile = fileSystem->Open(to);
     ASSERT(openFile != NULL);
     
 // Copy the data in TransferSize chunks
@@ -65,7 +65,7 @@ Copy(char *from, char *to)
     delete [] buffer;
 
 // Close the UNIX and the Nachos files
-    delete openFile;
+    delete openFile;*/
     fclose(fp);
 }
 
@@ -111,7 +111,7 @@ Print(char *name)
 #define FileName 	"TestFile"
 #define Contents 	"1234567890"
 #define ContentSize 	strlen(Contents)
-#define FileSize 	((int)(ContentSize * 5000))
+#define FileSize 	((int)(ContentSize * 100))
 
 static void 
 FileWrite()
@@ -120,11 +120,12 @@ FileWrite()
     int i, numBytes;
 
     printf("Sequential write of %d byte file, in %d byte chunks\n", 
-	FileSize, ContentSize);
-    if (!fileSystem->Create(FileName, 0)) {
+	500, ContentSize);
+    if (!fileSystem->Create(FileName, FileSize)) {
       printf("Perf test: can't create %s\n", FileName);
       return;
     }
+	printf("Change size of file from 500 byte to 1000 byte\n");
     openFile = fileSystem->Open(FileName);
     if (openFile == NULL) {
 	printf("Perf test: unable to open %s\n", FileName);
@@ -150,7 +151,6 @@ FileRead()
 
     printf("Sequential read of %d byte file, in %d byte chunks\n", 
 	FileSize, ContentSize);
-
     if ((openFile = fileSystem->Open(FileName)) == NULL) {
 	printf("Perf test: unable to open file %s\n", FileName);
 	delete [] buffer;

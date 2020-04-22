@@ -25,6 +25,7 @@
 #include "filehdr.h"
 #include "filesys.h"
 #include "directory.h"
+#define NumDirEntries 		10
 extern FileSystem  *fileSystem;
 //----------------------------------------------------------------------
 // Directory::Directory
@@ -45,7 +46,6 @@ void DirectoryEntry::GetName(char *into){
 
 void DirectoryEntry::SetName(char *into){
 	fileNameLen = strlen(into);
-	char tmp[256];
 	if (fileNameLen > FileNameMaxLen){
 		for (int i=0;i<FileNameMaxLen;i++)
 			name[i]=into[i];
@@ -83,8 +83,7 @@ Directory::~Directory()
 //----------------------------------------------------------------------
 
 void
-Directory::FetchFrom(OpenFile *file)
-{
+Directory::FetchFrom(OpenFile *file){
     (void) file->ReadAt((char *)table, tableSize * sizeof(DirectoryEntry), 0);
 }
 
@@ -112,12 +111,11 @@ Directory::WriteBack(OpenFile *file)
 int
 Directory::FindIndex(char *name)
 {
-    for (int i = 0; i < tableSize; i++)
+    for (int i = 0; i < tableSize; i++){
         if (table[i].inUse){
 			int len=strlen(name);
-			if (table[i].fileNameLen != len){
-				continue;
-			}				
+			if (table[i].fileNameLen != len)
+				continue;		
 			else{
 				char *tmpname = new char(len);
 				table[i].GetName(tmpname);
@@ -125,6 +123,7 @@ Directory::FindIndex(char *name)
 					return i;
 			}
 		}
+	}
     return -1;		// name not in directory
 }
 
@@ -141,13 +140,10 @@ int
 Directory::Find(char *name)
 {
     int i = FindIndex(name);
-
     if (i != -1)
 		return table[i].sector;
     return -1;
 }
-
-//----------------------------------------------------------------------
 // Directory::Add
 // 	Add a file into the directory.  Return TRUE if successful;
 //	return FALSE if the file name is already in the directory, or if
@@ -169,8 +165,26 @@ Directory::Add(char *name, int newSector)
             table[i].inUse = TRUE;
 			table[i].SetName(name);
             table[i].sector = newSector;
+			table[i].type = 'F';
         return TRUE;
 	}
+    return FALSE;	// no space.  Fix when we have extensible files.
+}
+
+bool Directory::AddDir(char *name, int DirectorySector){ 
+    if (FindIndex(name) != -1)
+		return FALSE;
+    for (int i = 0; i < tableSize; i++)
+        if (!table[i].inUse) {
+			table[i].inUse = TRUE;
+			table[i].SetName(name);
+			Directory *directory = new Directory(NumDirEntries);
+			OpenFile *directoryFile = new OpenFile(DirectorySector);
+			directory->WriteBack(directoryFile);
+			table[i].type = 'D';
+			table[i].sector = DirectorySector;
+			return TRUE;
+		}
     return FALSE;	// no space.  Fix when we have extensible files.
 }
 
@@ -199,13 +213,31 @@ Directory::Remove(char *name)
 //----------------------------------------------------------------------
 
 void
-Directory::List(){
-	char *tmpName;
-   tmpName = new char(256);
+Directory::List(int preblank=0){
+    char tmpName[256];
+    char *prestr = new char(preblank+1);
+	prestr[preblank]='\0';
+    if (preblank){
+		for (int i=0;i<preblank-2;i++)
+			prestr[i]=' ';
+		prestr[preblank-1] = '-';
+		prestr[preblank-2] = '-';
+    }
+    prestr[preblank]='\0';
    for (int i = 0; i < tableSize; i++)
 	if (table[i].inUse){
-		table[i].GetName(tmpName);
-	    printf("%s \n", tmpName);
+		if (table[i].type == 'F'){
+			table[i].GetName(tmpName);
+			printf("%sFILE: %s \n", prestr, tmpName);
+		}
+		else{
+			table[i].GetName(tmpName);
+			printf("%sDIRECTORY: %s\n", prestr, tmpName);
+			OpenFile *currentDirFile = new OpenFile(Find(tmpName));
+			Directory *currentDir = new Directory(NumDirEntries);
+			currentDir->FetchFrom(currentDirFile);
+			currentDir -> List(preblank + 10);
+		}
 	}
 }
 
